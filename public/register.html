@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Photo Grabber — Register</title>
+  <link rel="stylesheet" href="/css/style.css" />
+</head>
+<body>
+  <header>
+    <h1>📷 Photo Grabber</h1>
+    <nav>
+      <a href="/login.html">Login</a>
+      <a href="/register.html" class="active">Register</a>
+    </nav>
+  </header>
+
+  <main class="auth-page">
+    <div class="auth-card">
+      <h2>Create Account</h2>
+      <p class="auth-subtitle">Secured with RSA encryption & digital signatures</p>
+
+      <!-- Flowchart Step 1: Insert username and password -->
+      <form id="registerForm" autocomplete="off">
+        <div class="form-group">
+          <label for="username">Username</label>
+          <input type="text" id="username" name="username" required minlength="3" placeholder="Choose a username" />
+        </div>
+        <div class="form-group">
+          <label for="password">Password</label>
+          <input type="password" id="password" name="password" required minlength="6" placeholder="Min 6 characters" />
+        </div>
+        <div class="form-group">
+          <label for="confirmPassword">Confirm Password</label>
+          <input type="password" id="confirmPassword" required placeholder="Re-enter password" />
+        </div>
+
+        <button type="submit" class="btn btn-primary btn-full" id="btnRegister">
+          🔐 Create Account
+        </button>
+      </form>
+
+      <!-- Progress steps (shows flowchart progress to user) -->
+      <div id="steps" class="steps hidden">
+        <div class="step" id="step-merge">⏳ Merging data & generating hash…</div>
+        <div class="step" id="step-encrypt">⏳ Encrypting with RSA (server public key)…</div>
+        <div class="step" id="step-sign">⏳ Signing with your private key…</div>
+        <div class="step" id="step-send">⏳ Sending to cloud for verification…</div>
+        <div class="step" id="step-result">⏳ Waiting for server response…</div>
+      </div>
+
+      <div id="status" class="status-msg"></div>
+
+      <p class="auth-footer">Already have an account? <a href="/login.html">Login here</a></p>
+    </div>
+  </main>
+
+  <script src="/js/crypto-auth.js"></script>
+  <script src="/js/register.js"></script>
+</body>
+</html>

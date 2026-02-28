@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Photo Grabber — Gallery</title>
+  <link rel="stylesheet" href="/css/style.css" />
+</head>
+<body>
+  <header>
+    <h1>🖼️ Photo Gallery</h1>
+    <nav>
+      <a href="/">Capture</a>
+      <a href="/gallery.html" class="active">Gallery</a>
+      <span id="userBadge" class="user-badge"></span>
+    </nav>
+  </header>
+
+  <main class="gallery-page">
+    <div class="gallery-toolbar">
+      <span id="photoCount">Loading…</span>
+      <div style="display:flex;gap:0.5rem;">
+        <button id="btnRefresh" class="btn btn-primary">🔄 Refresh</button>
+        <button id="btnClearAll" class="btn btn-danger">🗑️ Clear All</button>
+      </div>
+    </div>
+
+    <div id="galleryGrid" class="gallery-grid">
+      <!-- Photos loaded dynamically -->
+    </div>
+
+    <p id="emptyMsg" class="empty-msg" style="display:none;">
+      No photos yet. <a href="/">Capture your first photo!</a>
+    </p>
+  </main>
+
+  <!-- Lightbox overlay -->
+  <div id="lightbox" class="lightbox" style="display:none;">
+    <button id="lightboxClose" class="lightbox-close">&times;</button>
+    <img id="lightboxImg" alt="Full size" />
+    <div class="lightbox-info">
+      <span id="lightboxName"></span>
+      <button id="lightboxDelete" class="btn btn-danger btn-sm">🗑️ Delete</button>
+      <a id="lightboxDownload" class="btn btn-primary btn-sm" download>⬇️ Download</a>
+    </div>
+  </div>
+
+  <script src="/js/gallery.js"></script>
+  <script>
+    const u = localStorage.getItem("username");
+    if (u) {
+      document.getElementById("userBadge").innerHTML =
+        `👤 ${u} <button class="logout-btn" onclick="localStorage.clear();location.href='/login.html'">Logout</button>`;
+    }
+  </script>
+</body>
+</html>

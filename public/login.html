@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Photo Grabber — Login</title>
+  <link rel="stylesheet" href="/css/style.css" />
+</head>
+<body>
+  <header>
+    <h1>📷 Photo Grabber</h1>
+    <nav>
+      <a href="/login.html" class="active">Login</a>
+      <a href="/register.html">Register</a>
+    </nav>
+  </header>
+
+  <main class="auth-page">
+    <div class="auth-card">
+      <h2>Login</h2>
+      <p class="auth-subtitle">Encrypted authentication</p>
+
+      <form id="loginForm" autocomplete="off">
+        <div class="form-group">
+          <label for="username">Username</label>
+          <input type="text" id="username" name="username" required placeholder="Your username" />
+        </div>
+        <div class="form-group">
+          <label for="password">Password</label>
+          <input type="password" id="password" name="password" required placeholder="Your password" />
+        </div>
+        <button type="submit" class="btn btn-primary btn-full" id="btnLogin">
+          🔓 Login
+        </button>
+      </form>
+
+      <div id="steps" class="steps hidden">
+        <div class="step" id="step-merge">⏳ Merging data & hashing…</div>
+        <div class="step" id="step-encrypt">⏳ Encrypting with RSA…</div>
+        <div class="step" id="step-send">⏳ Sending to cloud…</div>
+        <div class="step" id="step-result">⏳ Verifying…</div>
+      </div>
+
+      <div id="status" class="status-msg"></div>
+
+      <p class="auth-footer">No account? <a href="/register.html">Register here</a></p>
+    </div>
+  </main>
+
+  <script src="/js/crypto-auth.js"></script>
+  <script src="/js/login.js"></script>
+</body>
+</html>
