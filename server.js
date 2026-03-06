@@ -3,7 +3,7 @@ const multer = require("multer");
 const cors = require("cors");
 const path = require("path");
 const crypto = require("crypto");
-const { MongoClient, ObjectId, Binary } = require("mongodb");
+const { MongoClient, ObjectId, Binary, ServerApiVersion } = require("mongodb");
 
 // Optional: load env vars from a local .env file (ignored by git)
 require("dotenv").config();
@@ -19,17 +19,32 @@ const USER_COL = "users";
 const SESSION_COL = "sessions";
 
 let db, photosCol, usersCol, sessionsCol;
+let mongoClient;
 
 async function connectMongo() {
-  const client = new MongoClient(MONGO_URI);
-  await client.connect();
-  db = client.db(DB_NAME);
+  if (MONGO_URI.includes("<db_password>")) {
+    throw new Error("MONGODB_URI still contains '<db_password>' placeholder. Set a real password in your environment variables.");
+  }
+
+  mongoClient = new MongoClient(MONGO_URI, {
+    serverApi: {
+      version: ServerApiVersion.v1,
+      strict: true,
+      deprecationErrors: true,
+    },
+  });
+
+  await mongoClient.connect();
+  // Quick health check (helps catch networking / auth / IP allowlist problems)
+  await mongoClient.db("admin").command({ ping: 1 });
+
+  db = mongoClient.db(DB_NAME);
   photosCol = db.collection(PHOTO_COL);
   usersCol = db.collection(USER_COL);
   sessionsCol = db.collection(SESSION_COL);
   // Unique index on username
   await usersCol.createIndex({ username: 1 }, { unique: true });
-  console.log(`✔ Connected to MongoDB → ${DB_NAME}`);
+  console.log(`✔ Connected to MongoDB → ${DB_NAME} (ping ok)`);
 }
 
 // ── Server RSA key pair (cloud keys) ───────────────────────
