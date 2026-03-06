@@ -1,0 +1,13 @@
+services:
+  - type: web
+    name: photo-grabber
+    env: node
+    plan: free
+    buildCommand: npm ci --omit=dev
+    startCommand: npm start
+    autoDeploy: true
+    envVars:
+      - key: DB_NAME
+        value: photo_grabber
+      - key: MONGODB_URI
+        sync: false
