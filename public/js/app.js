@@ -5,6 +5,12 @@ const TOKEN = localStorage.getItem("sessionToken");
 if (!TOKEN) { window.location.href = "/login.html"; }
 function authHeaders() { return { "x-session-token": TOKEN }; }
 
+function handleUnauthorized() {
+  localStorage.removeItem("sessionToken");
+  localStorage.removeItem("username");
+  window.location.href = "/login.html";
+}
+
 const video       = document.getElementById("videoFeed");
 const canvas      = document.getElementById("snapshotCanvas");
 const btnStart    = document.getElementById("btnStart");
@@ -27,6 +33,7 @@ let facingMode = "user";            // front camera default
 async function updateStats() {
   try {
     const res  = await fetch("/api/photos", { headers: authHeaders() });
+    if (res.status === 401) return handleUnauthorized();
     const data = await res.json();
     if (totalPhotosEl) totalPhotosEl.textContent = data.total || 0;
     if (todayPhotosEl) {
@@ -110,6 +117,7 @@ async function uploadBlob(blob) {
   if (spinner) spinner.style.display = "block";
   try {
     const res  = await fetch("/api/upload", { method: "POST", headers: authHeaders(), body: fd });
+    if (res.status === 401) return handleUnauthorized();
     const data = await res.json();
 
     if (data.success) {
@@ -137,6 +145,7 @@ fileInput.addEventListener("change", async (e) => {
   showStatus("Uploading file…", "info");
   try {
     const res  = await fetch("/api/upload", { method: "POST", headers: authHeaders(), body: fd });
+    if (res.status === 401) return handleUnauthorized();
     const data = await res.json();
 
     if (data.success) {

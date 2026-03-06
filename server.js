@@ -5,6 +5,9 @@ const path = require("path");
 const crypto = require("crypto");
 const { MongoClient, ObjectId, Binary } = require("mongodb");
 
+// Optional: load env vars from a local .env file (ignored by git)
+require("dotenv").config();
+
 const app = express();
 const PORT = process.env.PORT || 3500;
 
@@ -42,6 +45,11 @@ const { publicKey: serverPubKey, privateKey: serverPrivKey } =
 app.use(cors());
 app.use(express.json({ limit: "10mb" }));
 app.use(express.static(path.join(__dirname, "public")));
+
+// Serve the capture page (repo-root index.html)
+app.get("/", (_req, res) => {
+  res.sendFile(path.join(__dirname, "index.html"));
+});
 
 // ── Auth middleware ─────────────────────────────────────────
 async function requireAuth(req, res, next) {
@@ -337,10 +345,10 @@ app.post("/api/upload-base64", requireAuth, async (req, res) => {
 });
 
 // GET /api/photos  –  list all stored photos (metadata only, no binary)
-app.get("/api/photos", requireAuth, async (_req, res) => {
+app.get("/api/photos", requireAuth, async (req, res) => {
   try {
     const photos = await photosCol
-      .find({}, { projection: { data: 0 } })       // exclude heavy binary
+      .find({ userId: req.userId }, { projection: { data: 0 } })       // exclude heavy binary
       .sort({ uploadedAt: -1 })
       .toArray();
 
@@ -361,10 +369,21 @@ app.get("/api/photos", requireAuth, async (_req, res) => {
   }
 });
 
-// GET /api/photos/:id/image  –  serve actual image binary from MongoDB
-app.get("/api/photos/:id/image", async (req, res) => {
+// DELETE /api/photos  –  delete all photos for the current user
+app.delete("/api/photos", requireAuth, async (req, res) => {
   try {
-    const doc = await photosCol.findOne({ _id: new ObjectId(req.params.id) });
+    const result = await photosCol.deleteMany({ userId: req.userId });
+    res.json({ success: true, deleted: result.deletedCount || 0 });
+  } catch (err) {
+    console.error("Clear-all error:", err);
+    res.status(500).json({ error: "Failed to clear photos" });
+  }
+});
+
+// GET /api/photos/:id/image  –  serve actual image binary from MongoDB
+app.get("/api/photos/:id/image", requireAuth, async (req, res) => {
+  try {
+    const doc = await photosCol.findOne({ _id: new ObjectId(req.params.id), userId: req.userId });
     if (!doc) return res.status(404).json({ error: "Not found" });
 
     res.set("Content-Type", doc.contentType);
@@ -378,7 +397,7 @@ app.get("/api/photos/:id/image", async (req, res) => {
 // DELETE /api/photos/:id  –  remove a photo from MongoDB
 app.delete("/api/photos/:id", requireAuth, async (req, res) => {
   try {
-    const result = await photosCol.deleteOne({ _id: new ObjectId(req.params.id) });
+    const result = await photosCol.deleteOne({ _id: new ObjectId(req.params.id), userId: req.userId });
     if (result.deletedCount === 0) return res.status(404).json({ error: "Not found" });
     console.log(`✖ Deleted: ${req.params.id}`);
     res.json({ success: true });
