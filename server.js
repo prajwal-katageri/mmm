@@ -20,6 +20,7 @@ const SESSION_COL = "sessions";
 
 let db, photosCol, usersCol, sessionsCol;
 let mongoClient;
+let mongoReady = false;
 
 async function connectMongo() {
   if (MONGO_URI.includes("<db_password>")) {
@@ -44,7 +45,23 @@ async function connectMongo() {
   sessionsCol = db.collection(SESSION_COL);
   // Unique index on username
   await usersCol.createIndex({ username: 1 }, { unique: true });
+  mongoReady = true;
   console.log(`✔ Connected to MongoDB → ${DB_NAME} (ping ok)`);
+}
+
+async function connectMongoWithRetry() {
+  const retryMs = Number(process.env.MONGO_RETRY_MS || 5000);
+  // Keep trying until connected; this helps Render see an open port even if Atlas is slow.
+  while (!mongoReady) {
+    try {
+      await connectMongo();
+      return;
+    } catch (err) {
+      mongoReady = false;
+      console.error("❌ MongoDB connect failed:", err && err.message ? err.message : err);
+      await new Promise((r) => setTimeout(r, retryMs));
+    }
+  }
 }
 
 // ── Server RSA key pair (cloud keys) ───────────────────────
@@ -66,8 +83,16 @@ app.get("/", (_req, res) => {
   res.sendFile(path.join(__dirname, "index.html"));
 });
 
+// Basic health check for deploy platforms
+app.get("/healthz", (_req, res) => {
+  res.status(mongoReady ? 200 : 503).json({ ok: true, mongoReady });
+});
+
 // ── Auth middleware ─────────────────────────────────────────
 async function requireAuth(req, res, next) {
+  if (!mongoReady || !sessionsCol) {
+    return res.status(503).json({ error: "Database not ready" });
+  }
   const token = req.headers["x-session-token"];
   if (!token) return res.status(401).json({ error: "Not authenticated" });
   const session = await sessionsCol.findOne({ token, expiresAt: { $gt: new Date() } });
@@ -421,15 +446,14 @@ app.delete("/api/photos/:id", requireAuth, async (req, res) => {
   }
 });
 
-// ── Start server (after MongoDB connects) ──────────────────
-connectMongo().then(() => {
-  app.listen(PORT, () => {
-    console.log(`\n🚀  Photo Grabber running at  http://localhost:${PORT}`);
-    console.log(`📷  Capture:  http://localhost:${PORT}/`);
-    console.log(`🖼️  Gallery:  http://localhost:${PORT}/gallery.html`);
-    console.log(`🗄️  MongoDB:  ${MONGO_URI}/${DB_NAME}\n`);
-  });
-}).catch((err) => {
-  console.error("❌ Failed to connect to MongoDB:", err.message);
-  process.exit(1);
+// ── Start server (bind port first for platforms like Render) ───────────────
+app.listen(PORT, () => {
+  console.log(`\n🚀  Photo Grabber running at  http://localhost:${PORT}`);
+  console.log(`📷  Capture:  http://localhost:${PORT}/`);
+  console.log(`🖼️  Gallery:  http://localhost:${PORT}/gallery.html`);
+  console.log(`🗄️  MongoDB target DB: ${DB_NAME}`);
+  console.log(`🩺  Health:  /healthz (503 until DB connects)\n`);
 });
+
+// Connect to MongoDB in background (with retry)
+connectMongoWithRetry();
