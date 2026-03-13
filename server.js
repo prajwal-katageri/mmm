@@ -12,8 +12,8 @@ const app = express();
 const PORT = process.env.PORT || 3500;
 
 // ── MongoDB config ─────────────────────────────────────
-const MONGO_URI = process.env.MONGODB_URI || "mongodb://localhost:27017";
-const DB_NAME = process.env.DB_NAME || "photo_grabber";
+const MONGO_URI = (process.env.MONGODB_URI || "mongodb://localhost:27017").trim();
+const DB_NAME = (process.env.DB_NAME || "photo_grabber").trim();
 const PHOTO_COL = "photos";
 const USER_COL = "users";
 const SESSION_COL = "sessions";
@@ -22,6 +22,7 @@ let db, photosCol, usersCol, sessionsCol;
 let mongoClient;
 let mongoReady = false;
 let lastMongoError = null;
+let lastMongoErrorMeta = null;
 
 async function connectMongo() {
   if (MONGO_URI.includes("<db_password>")) {
@@ -65,8 +66,12 @@ async function connectMongoWithRetry() {
       return;
     } catch (err) {
       mongoReady = false;
-      lastMongoError = err && err.message ? err.message : String(err);
-      console.error("❌ MongoDB connect failed:", lastMongoError);
+        lastMongoError = err && err.message ? err.message : String(err);
+        lastMongoErrorMeta = {
+          name: err?.name || null,
+          code: err?.code || null,
+        };
+        console.error("❌ MongoDB connect failed:", lastMongoError);
       await new Promise((r) => setTimeout(r, retryMs));
     }
   }
@@ -95,7 +100,7 @@ app.get("/", (_req, res) => {
 app.get("/healthz", (_req, res) => {
   // Always return 200 so platform health checks don't flap while Mongo is connecting.
   // Clients can inspect `mongoReady` and `mongoError`.
-  res.status(200).json({ ok: true, mongoReady, mongoError: lastMongoError });
+  res.status(200).json({ ok: true, mongoReady, mongoError: lastMongoError, mongoErrorMeta: lastMongoErrorMeta });
 });
 
 // ── Auth middleware ─────────────────────────────────────────
