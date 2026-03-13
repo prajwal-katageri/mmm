@@ -21,6 +21,7 @@ const SESSION_COL = "sessions";
 let db, photosCol, usersCol, sessionsCol;
 let mongoClient;
 let mongoReady = false;
+let lastMongoError = null;
 
 async function connectMongo() {
   if (MONGO_URI.includes("<db_password>")) {
@@ -46,11 +47,17 @@ async function connectMongo() {
   // Unique index on username
   await usersCol.createIndex({ username: 1 }, { unique: true });
   mongoReady = true;
+  lastMongoError = null;
   console.log(`✔ Connected to MongoDB → ${DB_NAME} (ping ok)`);
 }
 
 async function connectMongoWithRetry() {
   const retryMs = Number(process.env.MONGO_RETRY_MS || 5000);
+
+  if (process.env.NODE_ENV === "production" && (!process.env.MONGODB_URI || process.env.MONGODB_URI.trim() === "")) {
+    console.warn("⚠ MONGODB_URI is not set. In production this usually means your hosting env vars are missing.");
+  }
+
   // Keep trying until connected; this helps Render see an open port even if Atlas is slow.
   while (!mongoReady) {
     try {
@@ -58,7 +65,8 @@ async function connectMongoWithRetry() {
       return;
     } catch (err) {
       mongoReady = false;
-      console.error("❌ MongoDB connect failed:", err && err.message ? err.message : err);
+      lastMongoError = err && err.message ? err.message : String(err);
+      console.error("❌ MongoDB connect failed:", lastMongoError);
       await new Promise((r) => setTimeout(r, retryMs));
     }
   }
@@ -85,7 +93,9 @@ app.get("/", (_req, res) => {
 
 // Basic health check for deploy platforms
 app.get("/healthz", (_req, res) => {
-  res.status(mongoReady ? 200 : 503).json({ ok: true, mongoReady });
+  // Always return 200 so platform health checks don't flap while Mongo is connecting.
+  // Clients can inspect `mongoReady` and `mongoError`.
+  res.status(200).json({ ok: true, mongoReady, mongoError: lastMongoError });
 });
 
 // ── Auth middleware ─────────────────────────────────────────
@@ -129,6 +139,10 @@ app.get("/api/auth/server-pubkey", (_req, res) => {
 */
 app.post("/api/auth/register", async (req, res) => {
   try {
+    if (!mongoReady || !usersCol) {
+      return res.status(503).json({ error: "Database not ready", step: "db-not-ready" });
+    }
+
     const { encryptedPayload, publicKey: userPubKeyPem, signature } = req.body;
 
     if (!encryptedPayload || !userPubKeyPem || !signature) {
@@ -221,6 +235,10 @@ app.post("/api/auth/register", async (req, res) => {
 */
 app.post("/api/auth/login", async (req, res) => {
   try {
+    if (!mongoReady || !usersCol || !sessionsCol) {
+      return res.status(503).json({ error: "Database not ready", step: "db-not-ready" });
+    }
+
     const { encryptedPayload, signature } = req.body;
 
     if (!encryptedPayload) {
